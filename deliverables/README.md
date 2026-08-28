@@ -65,5 +65,6 @@ sudo apt-get install -y libboost-regex-dev cmake ninja-build python3-dev
   pip install / 端到端推理 / 编译验证。
 - NPU 回归：未做（需内网用同一官方 test pkl 回归：
   contact_probs 均值差 ~0.0011、fp32 完整配置 ~80s 量级）。
-- af3_service.py（内网验证用的推理服务脚本）未包含在本次交付中，
-  需另行入库。
+- af3_service.py 已按部署手册重写入库（service/af3_service.py），
+  相对内网冒烟版：路径/参数环境变量化、默认 fp32、完整配置默认值、
+  推理加锁、sys.executable 子进程，待内网回归。

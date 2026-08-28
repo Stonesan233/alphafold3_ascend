@@ -12,6 +12,7 @@ AF3 完整推理：float32 约 79.8s / bfloat16 约 97.4s（150 tokens，5 sampl
 xfold/          PyTorch 版 AF3（基线 22bdeed），已含 NPU 适配修改
 alphafold3/     官方仓（基线 c0f97ed），仅改数据管线 / C++ 扩展构建，
                 不改 JAX 模型
+service/        af3_service.py — OpenAI 兼容 FastAPI 推理服务（NPU）
 patches/        dssp v4.4.7 补丁（打在 dssp 第三方源码上）
 deliverables/   相对基线 SHA 的 git diff + 交付说明
 ```
@@ -87,14 +88,25 @@ python -c "import alphafold3.cpp; print('OK')"
 
 不设 `ALPHAFOLD3_DEPS_DIR` 时仍走 GitHub FetchContent 在线构建，原路径不受影响。
 
+### 推理服务（OpenAI 兼容 API）
+
+内网验证路线已正式入库：`service/af3_service.py`（FastAPI，端口 9800，
+`/v1/chat/completions`、`/predict`、`/predict/test`）。相对内网冒烟版的改进：
+路径/参数全部环境变量化（`AF3_SRC`、`AF3_MODEL_DIR`、`AF3_PRECISION` 等）、
+**默认 fp32**（与仓库 NPU 精度策略一致，正式压测无需改代码）、完整配置
+10 recycle / 5 sample / 200 step（冒烟可 env 覆盖）、推理全局锁串行化、
+子进程加载用 `sys.executable`。详见 `service/README.md`。
+
+部署手册：`AF3_Ascend_NPU_field_deployment_handbook.md`（现场从零部署步骤
+与故障排查）。
+
 ## 验证状态
 
 - 已通过：全部改动 `py_compile` 语法检查；run_alphafold.py 引用的
   alphafold3 3.0.4 API 已逐一静态核实；dssp 补丁 `git apply` 往返校验
 - 待内网 NPU 回归：`contact_probs` 均值差 ~0.0011、fp32 完整配置 ~80s 量级、
-  `import alphafold3.cpp` 无 boost 缺符号、run_alphafold.py 端到端
-  （官方 test pkl / input）
-- af3_service.py（内网验证用的推理服务脚本）待入库
+  `import alphafold3.cpp` 无 boost 缺符号、run_alphafold.py 端到端与
+  af3_service.py（官方 test pkl / input）
 
 ## 内网环境参考
 
