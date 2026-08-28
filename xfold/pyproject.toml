@@ -11,6 +11,12 @@ dynamic = ["version"]
 dependencies = [
     "torch", 
     "einops",
+    # Required by run_alphafold.py via the alphafold3 data pipeline / model
+    # imports (alphafold3.model.model -> tokamax, confidences -> jax.numpy,
+    # model params -> dm-haiku). CPU builds are sufficient.
+    "jax",
+    "dm-haiku",
+    "tokamax",
 ]
 
 [tool.setuptools]

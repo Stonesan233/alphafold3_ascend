@@ -41,10 +41,9 @@ import alphafold3.cpp
 from alphafold3.data import featurisation
 from alphafold3.data import pipeline
 from alphafold3.model import features
+from alphafold3.model import model as af3_model
 from alphafold3.model import post_processing
-from alphafold3.model.components import base_model
 from alphafold3.model.components import utils
-from alphafold3.model.diffusion.model import Diffuser
 
 import numpy as np
 import torch
@@ -201,6 +200,18 @@ _NUM_DIFFUSION_SAMPLES = flags.DEFINE_integer(
     'Number of diffusion samples to generate.',
 )
 
+_NUM_RECYCLES = flags.DEFINE_integer(
+    'num_recycles',
+    10,
+    'Number of recycles. Lower it (e.g. 1-3) for quick tests.',
+)
+
+_DIFFUSION_STEPS = flags.DEFINE_integer(
+    'diffusion_steps',
+    200,
+    'Number of diffusion sampler steps. Lower it (e.g. 20-50) for quick tests.',
+)
+
 _PRECISION = flags.DEFINE_enum(
     'precision',
     'auto',
@@ -260,7 +271,11 @@ class ModelRunner:
         self._device = device
         self._precision = precision
 
-        self._model = AlphaFold3(num_samples=_NUM_DIFFUSION_SAMPLES.value)
+        self._model = AlphaFold3(
+            num_recycles=_NUM_RECYCLES.value,
+            num_samples=_NUM_DIFFUSION_SAMPLES.value,
+            diffusion_steps=_DIFFUSION_STEPS.value,
+        )
         self._model.eval()
         print('loading the model parameters...')
         import_jax_weights_(self._model, model_dir)
@@ -276,7 +291,7 @@ class ModelRunner:
     @torch.inference_mode()
     def run_inference(
         self, featurised_example: features.BatchDict
-    ) -> base_model.ModelResult:
+    ) -> af3_model.ModelResult:
         """Computes a forward pass of the model on a featurised example."""
         featurised_example = pytree.tree_map(
             torch.from_numpy, utils.remove_invalidly_typed_feats(
@@ -320,12 +335,12 @@ class ModelRunner:
     def extract_structures(
         self,
         batch: features.BatchDict,
-        result: base_model.ModelResult,
+        result: af3_model.ModelResult,
         target_name: str,
-    ) -> list[base_model.InferenceResult]:
+    ) -> list[af3_model.InferenceResult]:
         """Generates structures from model outputs."""
         return list(
-            Diffuser.get_inference_result(
+            af3_model.Model.get_inference_result(
                 batch=batch, result=result, target_name=target_name
             )
         )
@@ -343,7 +358,7 @@ class ResultsForSeed:
     """
 
     seed: int
-    inference_results: Sequence[base_model.InferenceResult]
+    inference_results: Sequence[af3_model.InferenceResult]
     full_fold_input: folding_input.Input
 
 
@@ -356,7 +371,7 @@ def predict_structure(
 
     print(f'Featurising data for seeds {fold_input.rng_seeds}...')
     featurisation_start_time = time.time()
-    ccd = chemical_components.cached_ccd(user_ccd=fold_input.user_ccd)
+    ccd = chemical_components.Ccd(user_ccd=fold_input.user_ccd)
     featurised_examples = featurisation.featurise_input(
         fold_input=fold_input, buckets=buckets, ccd=ccd, verbose=True
     )

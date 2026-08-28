@@ -25,8 +25,10 @@ deliverables/   相对基线 SHA 的 git diff + 交付说明
 | 文件 | 改动 |
 |------|------|
 | `xfold/params.py` | zstandard 可选；自动探测 `af3.bin.zst` / `af3.bin` 双格式权重；fourier npy 缺失时报清晰错误 |
-| `run_alphafold.py` | 设备抽象（NPU > CUDA > CPU，`AF3_DEVICE` 环境变量可覆盖卡号）；float64→float32 转换（NPU aclnnMatmul 不支持 DT_DOUBLE）；NPU 默认 float32；`--precision {auto,fp32,bf16}` |
+| `run_alphafold.py` | 设备抽象（NPU > CUDA > CPU，`AF3_DEVICE` 环境变量可覆盖卡号）；float64→float32 转换（NPU aclnnMatmul 不支持 DT_DOUBLE）；NPU 默认 float32；`--precision {auto,fp32,bf16}`、`--num_recycles`、`--diffusion_steps` |
+| `run_alphafold.py` | 适配 alphafold3 3.0.4 API：`Diffuser`/`base_model`（3.0.2 时代，已被官方删除）替换为 `alphafold3.model.model` 的 `Model.get_inference_result` / `ModelResult` / `InferenceResult`；`cached_ccd` → `Ccd` |
 | `xfold/fastnn/*` | triton 可选 import + torch fallback；无 CUDA 环境自动使用 torch 实现 |
+| `pyproject.toml` | 补充 `jax` / `dm-haiku` / `tokamax`（run_alphafold.py 经 alphafold3 import 链需要，CPU 版即可） |
 
 **alphafold3**
 
@@ -44,11 +46,20 @@ deliverables/   相对基线 SHA 的 git diff + 交付说明
 cd xfold
 pip install -e .
 
-# auto 精度在 NPU 上即 float32（昇腾上 fp32 比 bf16 更快、置信度更好）
+# run_alphafold.py 还依赖 alphafold3 Python 包（数据管线 + cpp 扩展），
+# 见下节；jax / dm-haiku / tokamax 已在 pyproject 中声明（CPU 版即可）。
 python run_alphafold.py --json_path <input.json> --output_dir <out> \
     --model_dir <weights_dir> --precision auto
 
 AF3_DEVICE=npu:5 python run_alphafold.py ...   # 指定卡号，默认 npu:0
+
+# 快速冒烟（降低循环与扩散步数）
+python run_alphafold.py ... --num_recycles 1 --diffusion_steps 20
+```
+
+注意：走完整数据管线需要 CCD 数据文件 `chemical_components.pickle`
+（约 546MB）与 `components.cif`，由 `build_data` / `ccd_pickle_gen.py`
+生成，部署时勿遗漏。
 ```
 
 权重目录需包含（`af3.bin` 或 `af3.bin.zst` 二选一）：
@@ -78,9 +89,12 @@ python -c "import alphafold3.cpp; print('OK')"
 
 ## 验证状态
 
-- 已通过：全部改动 `py_compile` 语法检查；dssp 补丁 `git apply` 往返校验
+- 已通过：全部改动 `py_compile` 语法检查；run_alphafold.py 引用的
+  alphafold3 3.0.4 API 已逐一静态核实；dssp 补丁 `git apply` 往返校验
 - 待内网 NPU 回归：`contact_probs` 均值差 ~0.0011、fp32 完整配置 ~80s 量级、
-  `import alphafold3.cpp` 无 boost 缺符号（使用官方 test pkl）
+  `import alphafold3.cpp` 无 boost 缺符号、run_alphafold.py 端到端
+  （官方 test pkl / input）
+- af3_service.py（内网验证用的推理服务脚本）待入库
 
 ## 内网环境参考
 
