@@ -19,8 +19,9 @@
 | xfold/run_alphafold.py | 适配 alphafold3 3.0.4 API：base_model/Diffuser 改为 alphafold3.model.model（Model.get_inference_result / ModelResult / InferenceResult）；cached_ccd → Ccd；新增 --num_recycles/--diffusion_steps | 事实核查补充 | P0 |
 | xfold/pyproject.toml | 补充 run_alphafold.py 运行时依赖 jax / dm-haiku / tokamax（CPU 版即可） | 事实核查补充 | P1 |
 | alphafold3/pyproject.toml | requires-python >=3.11 | 修改 6 | P0 |
-| alphafold3/CMakeLists.txt | 离线 ALPHAFOLD3_DEPS_DIR + Boost::regex | 修改 7、8 | P0 |
-| alphafold3/patches/dssp-v4.4.7-mkdssp-option.patch | DSSP_BUILD_MKDSSP 开关（打在 dssp 第三方源码上） | 修改 9 | P1 |
+| alphafold3/CMakeLists.txt | 离线 ALPHAFOLD3_DEPS_DIR + Boost::regex（>=1.74）+ DSSP_BUILD_MKDSSP 默认 OFF | 修改 7、8 | P0 |
+| deps/（7 目录） | 预打补丁离线依赖包源码：abseil-cpp / pybind11 / pybind11_abseil / libcifpp / dssp / eigen / libmcfp | deps 追加需求 | P0 |
+| patches/（根目录） | libcifpp-boost-eigen.patch、dssp-mkdssp-offline.patch（patch -p1 格式，仅审计用） | 修改 9 + deps 追加需求 | P1 |
 
 ### 事实核查修复说明（相对首版交付）
 
@@ -46,14 +47,14 @@ featurise_input / DataPipelineConfig / write_output / folding_input /
 python run_alphafold.py ... --precision auto
 AF3_DEVICE=npu:5 python run_alphafold.py ...   # 指定卡号，默认 npu:0
 
-# alphafold3 离线编译（$ALPHAFOLD3_DEPS_DIR 含
-# abseil-cpp/ pybind11/ pybind11_abseil/ libcifpp/ dssp/，
-# 其中 dssp/ 需先 git apply patches/dssp-v4.4.7-mkdssp-option.patch）
-export ALPHAFOLD3_DEPS_DIR=/path/to/deps
-pip install -e . --no-build-isolation
+# alphafold3 离线编译（deps/ 已预改好，零手工 patch；tar 由仓库
+# deps/ 目录生成：tar czf deps.tar.gz deps）
+tar xzf deps.tar.gz
+export ALPHAFOLD3_DEPS_DIR=$PWD/deps
+cd alphafold3 && pip install -e . --no-build-isolation
 python -c "import alphafold3.cpp; print('OK')"   # 不得再出现 boost 缺符号
 
-# 外网编译机依赖（Debian/Ubuntu）
+# 外网编译机依赖（Debian/Ubuntu；Boost 1.74 即可，不要求 1.80）
 sudo apt-get install -y libboost-regex-dev cmake ninja-build python3-dev
 ```
 
@@ -61,8 +62,12 @@ sudo apt-get install -y libboost-regex-dev cmake ninja-build python3-dev
 
 - 外网门禁：Python 语法检查（py_compile）全部通过；run_alphafold.py 对
   alphafold3 3.0.4 的全部 API 引用已逐一静态核实（import 均可解析）；
-  dssp 补丁已 git-apply 往返校验，与目标结果逐字节一致；未做完整
-  pip install / 端到端推理 / 编译验证。
+  libcifpp / dssp 补丁已 git-apply 往返校验，与 deps/ 内文件逐字节一致；
+  静态验收：DEPS_DIR 模式下全部 GIT_REPOSITORY 均在 else 分支（除
+  libcifpp 的 boost-rx，由系统包 libboost-regex-dev 覆盖）；未在 Linux
+  上做完整 cmake / pip install 编译验证。
+- deps.tar.gz：由 deps/ 生成（约 7MB 压缩 / 37MB 源码），未入 git，
+  交付时随包携带或在仓库根执行 tar czf deps.tar.gz deps 重新生成。
 - NPU 回归：未做（需内网用同一官方 test pkl 回归：
   contact_probs 均值差 ~0.0011、fp32 完整配置 ~80s 量级）。
 - af3_service.py 已按部署手册重写入库（service/af3_service.py），

@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Maarten L. Hekkelman
+# SPDX-License-Identifier: BSD-2-Clause
+
+EXCLUDE_SYMBOLS        = std*
+FILE_PATTERNS          = *.hpp
+PREDEFINED             = MCFP_EXPORT= MCFP_INLINE=inline
+RECURSIVE			   = YES
+GENERATE_XML           = YES
+GENERATE_HTML          = NO
+GENERATE_TODOLIST      = NO
+INPUT                  = @DOXYGEN_INPUT_DIR@

@@ -42,13 +42,23 @@ unset(CMAKE_CXX_SCANDEP_SOURCE)
 #   abseil-cpp/      (abseil/abseil-cpp @ d7aaad83b488fd62bd51c81ecf16cd938532cc0a)
 #   pybind11/        (pybind/pybind11 @ 2e0815278cb899b20870a67ca8205996ef47e70f, v2.12.0)
 #   pybind11_abseil/ (pybind/pybind11_abseil @ bddf30141f9fec8e577f515313caec45f559d319)
-#   libcifpp/        (pdb-redo/libcifpp @ ac98531a2fc8daf21131faa0c3d73766efa46180, v7.0.3)
+#   libcifpp/        (pdb-redo/libcifpp @ ac98531a2fc8daf21131faa0c3d73766efa46180, v7.0.3;
+#                     pre-patched: Boost >= 1.74, eigen from ${DEPS_DIR}/eigen)
 #   dssp/            (PDB-REDO/dssp @ 57560472b4260dc41f457706bc45fc6ef0bc0f10, v4.4.7;
-#                     must be the patched copy, see patches/dssp-*.patch)
-# When ALPHAFOLD3_DEPS_DIR is unset (or a dependency directory is missing),
-# the original GitHub FetchContent path is used unchanged.
+#                     pre-patched: optional mkdssp, libmcfp/libcifpp from ${DEPS_DIR})
+#   eigen/           (libeigen/eigen @ 3.4.0, header-only usage)
+#   libmcfp/         (mhekkel/libmcfp @ v2.0.4; needed only by dssp's configure stage)
+# The pre-patched trees are shipped in the repository's deps/ directory and
+# in deps.tar.gz. When ALPHAFOLD3_DEPS_DIR is unset (or a dependency
+# directory is missing), the original GitHub FetchContent path is used.
 set(DEPS_DIR "$ENV{ALPHAFOLD3_DEPS_DIR}" CACHE PATH
     "Directory containing pre-downloaded dependency sources")
+
+# AlphaFold3 only needs the dssp::dssp library, not the mkdssp executable
+# (whose libmcfp linkage is broken with newer libmcfp). Default OFF; the
+# deps/dssp patch keeps the option available for standalone builds.
+set(DSSP_BUILD_MKDSSP OFF CACHE BOOL
+    "Build the mkdssp executable (not needed by AlphaFold3)")
 
 if(DEPS_DIR AND EXISTS "${DEPS_DIR}/abseil-cpp")
   FetchContent_Declare(abseil-cpp SOURCE_DIR "${DEPS_DIR}/abseil-cpp")
@@ -112,8 +122,8 @@ find_package(
 
 # libcifpp uses boost::regex; without this link the built cpp module fails to
 # import with `undefined symbol: _ZN5boost16re_detail...verify_optionsE...`.
-# Needs libboost-regex-dev (version left open, >= 1.74 known to work).
-find_package(Boost REQUIRED COMPONENTS regex)
+# Needs the system package libboost-regex-dev (>= 1.74).
+find_package(Boost 1.74 REQUIRED COMPONENTS regex)
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 include_directories(src/)

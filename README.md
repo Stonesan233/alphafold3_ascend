@@ -13,7 +13,8 @@ xfold/          PyTorch 版 AF3（基线 22bdeed），已含 NPU 适配修改
 alphafold3/     官方仓（基线 c0f97ed），仅改数据管线 / C++ 扩展构建，
                 不改 JAX 模型
 service/        af3_service.py — OpenAI 兼容 FastAPI 推理服务（NPU）
-patches/        dssp v4.4.7 补丁（打在 dssp 第三方源码上）
+deps/           离线依赖源码（7 个，已预打补丁，见下表）
+patches/        依赖补丁（仅供参考 / 审计，部署不依赖）
 deliverables/   相对基线 SHA 的 git diff + 交付说明
 ```
 
@@ -36,8 +37,10 @@ deliverables/   相对基线 SHA 的 git diff + 交付说明
 | 文件 | 改动 |
 |------|------|
 | `pyproject.toml` | `requires-python >= 3.11` |
-| `CMakeLists.txt` | `ALPHAFOLD3_DEPS_DIR` 离线 FetchContent（本地目录名 `libcifpp`）；链接 `Boost::regex`（修复 cpp.so undefined symbol） |
-| `patches/dssp-v4.4.7-mkdssp-option.patch` | `DSSP_BUILD_MKDSSP` 开关，可关闭 mkdssp 构建 |
+| `CMakeLists.txt` | `ALPHAFOLD3_DEPS_DIR` 离线 FetchContent（本地目录名 `libcifpp`）；链接 `Boost::regex`（>=1.74，修复 cpp.so undefined symbol）；`DSSP_BUILD_MKDSSP` 默认 OFF |
+| `deps/libcifpp`（预打补丁） | Boost 1.80→1.74；eigen FetchContent 改本地 `SOURCE_DIR` |
+| `deps/dssp`（预打补丁） | mkdssp 可关；libmcfp/libcifpp FetchContent 改本地 `SOURCE_DIR` |
+| `patches/`（根目录） | libcifpp / dssp 补丁（`patch -p1` 格式，仅审计用） |
 
 ## 服务器部署
 
@@ -69,24 +72,42 @@ python run_alphafold.py ... --num_recycles 1 --diffusion_steps 20
 af3.bin(.zst)  fourier_weight.npy  fourier_bias.npy
 ```
 
-### alphafold3 数据管线 / C++ 扩展（离线编译）
+### alphafold3 数据管线 / C++ 扩展（离线编译，零手工 patch）
+
+客户现场三步（依赖已预改好打包在 `deps/`，无需 git apply / sed）：
 
 ```bash
-# 1. 准备依赖源码目录，目录名必须如下（dssp 需先打补丁）
-#    $ALPHAFOLD3_DEPS_DIR/
-#      abseil-cpp/  pybind11/  pybind11_abseil/  libcifpp/  dssp/
-git apply patches/dssp-v4.4.7-mkdssp-option.patch   # 在 dssp 源码内执行
+# 0. 系统包（Boost regex 用系统包，不打进 deps；已有 1.74 即可，不要求 1.80）
+sudo apt-get install -y libboost-regex-dev cmake ninja-build python3-dev
+
+# 1. 解压依赖（或直接用仓库内 deps/ 目录）
+tar xzf deps.tar.gz        # 仓库内执行 tar czf deps.tar.gz deps 可重新生成
 
 # 2. 编译安装（Python 3.11）
-export ALPHAFOLD3_DEPS_DIR=/path/to/deps
-sudo apt-get install -y libboost-regex-dev cmake ninja-build python3-dev
+export ALPHAFOLD3_DEPS_DIR=$PWD/deps
+cd alphafold3
 pip install -e . --no-build-isolation
 
-# 3. 验证（不得再出现 boost undefined symbol）
+# 3. 验收
 python -c "import alphafold3.cpp; print('OK')"
+#   不得出现 boost undefined symbol
+#   断网配置阶段不得访问 github.com / gitlab.com
 ```
 
+`deps/`（7 个目录，均短目录名，已含全部补丁）：
+
+| 目录 | 上游 / 版本 | 预打补丁 |
+|------|-------------|----------|
+| `abseil-cpp/` | abseil @ `d7aaad83` | — |
+| `pybind11/` | pybind @ `2e081527` (v2.12.0) | — |
+| `pybind11_abseil/` | pybind @ `bddf3014` | — |
+| `libcifpp/` | pdb-redo @ `ac98531a` (v7.0.3) | Boost 1.80→1.74；eigen 改本地 `SOURCE_DIR` |
+| `dssp/` | PDB-REDO @ `5756047` (v4.4.7) | mkdssp 可关（alphafold3 默认 OFF）；libmcfp/libcifpp 改本地 `SOURCE_DIR` |
+| `eigen/` | libeigen 3.4.0（仅头文件使用，已裁剪） | — |
+| `libmcfp/` | mhekkel @ v2.0.4（仅 dssp 配置阶段需要） | — |
+
 不设 `ALPHAFOLD3_DEPS_DIR` 时仍走 GitHub FetchContent 在线构建，原路径不受影响。
+补丁内容见 `patches/`（`patch -p1` 格式，仅供审计，非部署前置）。
 
 ### 推理服务（OpenAI 兼容 API）
 

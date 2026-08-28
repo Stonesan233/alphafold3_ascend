@@ -1,0 +1,104 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 67153d2..797fa64 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -96,6 +96,14 @@ endif()
+ set(CMAKE_THREAD_PREFER_PTHREAD)
+ set(THREADS_PREFER_PTHREAD_FLAG)
+ find_package(Threads)
++
++# Offline builds: prefer pre-downloaded dependency sources over git.
++# DEPS_DIR is set by the parent alphafold3 project, or taken from the
++# ALPHAFOLD3_DEPS_DIR environment variable when building standalone.
++if(NOT DEFINED DEPS_DIR OR DEPS_DIR STREQUAL "")
++	set(DEPS_DIR "$ENV{ALPHAFOLD3_DEPS_DIR}")
++endif()
++
+ find_package(libmcfp QUIET)
+ 
+ if(NOT libmcfp_FOUND)
+@@ -105,11 +113,17 @@ if(NOT libmcfp_FOUND)
+ 		set(EXLC "EXCLUDE_FROM_ALL")
+ 	endif()
+ 
+-	FetchContent_Declare(
+-		libmcfp
+-		${EXLC}
+-		GIT_REPOSITORY https://github.com/mhekkel/libmcfp
+-		GIT_TAG v1.3.1)
++	if(DEPS_DIR AND EXISTS "${DEPS_DIR}/libmcfp")
++		FetchContent_Declare(
++			libmcfp
++			SOURCE_DIR "${DEPS_DIR}/libmcfp")
++	else()
++		FetchContent_Declare(
++			libmcfp
++			${EXLC}
++			GIT_REPOSITORY https://github.com/mhekkel/libmcfp
++			GIT_TAG v1.3.1)
++	endif()
+ 
+ 	FetchContent_MakeAvailable(libmcfp)
+ endif()
+@@ -119,33 +133,43 @@ find_package(cifpp 7 QUIET)
+ if(NOT cifpp_FOUND)
+ 	set(CIFPP_DOWNLOAD_CCD OFF)
+ 
+-	FetchContent_Declare(
+-		cifpp
+-		${EXLC}
+-		GIT_REPOSITORY https://github.com/pdb-redo/libcifpp.git
+-		GIT_TAG v7.0.3
+-	)
++	if(DEPS_DIR AND EXISTS "${DEPS_DIR}/libcifpp")
++		FetchContent_Declare(
++			cifpp
++			SOURCE_DIR "${DEPS_DIR}/libcifpp")
++	else()
++		FetchContent_Declare(
++			cifpp
++			${EXLC}
++			GIT_REPOSITORY https://github.com/pdb-redo/libcifpp.git
++			GIT_TAG v7.0.3
++		)
++	endif()
+ 
+ 	FetchContent_MakeAvailable(cifpp)
+ endif()
+ 
+ add_subdirectory(libdssp)
+ 
+-add_executable(mkdssp ${CMAKE_CURRENT_SOURCE_DIR}/src/mkdssp.cpp)
++option(DSSP_BUILD_MKDSSP "Build the mkdssp executable" ON)
+ 
+-target_link_libraries(mkdssp PRIVATE libmcfp::libmcfp dssp::dssp)
++if(DSSP_BUILD_MKDSSP)
++	add_executable(mkdssp ${CMAKE_CURRENT_SOURCE_DIR}/src/mkdssp.cpp)
+ 
+-if(USE_RSRC)
+-	mrc_target_resources(mkdssp
+-		${CIFPP_SHARE_DIR}/mmcif_pdbx.dic
+-		${CIFPP_SHARE_DIR}/mmcif_ddl.dic
+-		${CMAKE_CURRENT_SOURCE_DIR}/libdssp/mmcif_pdbx/dssp-extension.dic)
+-endif()
++	target_link_libraries(mkdssp PRIVATE libmcfp::libmcfp dssp::dssp)
++
++	if(USE_RSRC)
++		mrc_target_resources(mkdssp
++			${CIFPP_SHARE_DIR}/mmcif_pdbx.dic
++			${CIFPP_SHARE_DIR}/mmcif_ddl.dic
++			${CMAKE_CURRENT_SOURCE_DIR}/libdssp/mmcif_pdbx/dssp-extension.dic)
++	endif()
+ 
+-# Install rules
+-install(TARGETS ${PROJECT_NAME}
+-	RUNTIME DESTINATION bin
+-)
++	# Install rules
++	install(TARGETS ${PROJECT_NAME}
++		RUNTIME DESTINATION bin
++	)
++endif()
+ 
+ if(BUILD_DOCUMENTATION)
+ 	add_subdirectory(doc)

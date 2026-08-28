@@ -1,0 +1,94 @@
+Version 2.0.4
+- Fix terminal width detection using wrong file descriptor (stdin → stdout)
+- Fix IFNDR (ill-formed, no diagnostic required) in from_chars fallback template
+- Remove <experimental/type_traits> dependency; use std::void_t-based detection
+- Remove custom string_view_base reimplementation; use std::string_view directly
+- Consistent flag value handling: --verbose=true delegates to set_value like config files
+- Avoid unsigned integer overflow in word wrapping cost calculation
+- Initialize m_seen in option_base constructor
+- Replace std::println/exit in compile-time error handler with throw for cleaner diagnostics
+
+Version 2.0.3
+- Fix include in cmake config file
+
+Version 2.0.2
+- Build as traditional as well as module library.
+
+Version 2.0.1
+- Fix name of fast_float in CPMFindPackage to FastFloat
+
+Version 2.0.0
+- Add support for global options added by a library
+- Changed the config file parsing for flag options, an argument is now required
+- Improved wrapping of config options, added support for std::ostream::width
+
+Version 1.4.2
+- Clean up makefile
+
+Version 1.4.1
+- Remove libmcfp cmake config entirely
+- Do not build tests when BUILD_TESTING is ON, use
+  our own flag instead. Avoids building tests when
+  included by other packages.
+
+Version 1.4.0
+- Better error reporting
+
+Version 1.3.5
+- Install a cmake version file
+- Avoid using catch2 version 2
+
+Version 1.3.4
+- Renaming the mcfp to libmcfp was not very consistent
+  with the naming of all the other libraries I write.
+
+Version 1.3.3
+- Yet another config fix
+
+Version 1.3.2
+- Fix config.cmake file
+
+Version 1.3.1
+- revert the name change
+
+Version 1.3.0
+- Config file syntax improvements (better conforming to ini file syntax)
+- Better cmake file
+
+Version 1.2.5
+- Replace test for _MSC_VER with more generic _WIN32
+
+Version 1.2.4
+- Simpler get (added a version without template arguments)
+
+Version 1.2.3
+- MSVC compatibility
+
+Version 1.2.2
+- Added a non-throwing get
+- Added extended example code
+
+Version 1.2.1
+- Renamed to libmcfp and namespace mcfp
+
+Version 1.2.0
+- Fix in word wrapping code
+
+Version 1.1.1
+- Better support for older GCC compilers
+
+Version 1.2.0
+- New, tuples base implementation
+- Add 'usage' parameter to init
+
+Version 1.1.0
+- Parse config files
+
+Version 1.0.2
+- Fix get_terminal_width. Should be inline of course.
+
+Version 1.0.1
+- printing options, word-wrapped
+
+Version 1.0.0
+- initial release

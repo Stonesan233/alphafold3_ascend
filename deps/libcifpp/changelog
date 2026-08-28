@@ -1,0 +1,216 @@
+Version 7.0.3
+- Fix installation, write exports.hpp again
+
+Version 7.0.2
+- Fix in testing error_code results.
+
+Version 7.0.1
+- Various reconstruction fixes
+- category order in output fixed
+- better implementation of constructors for file, datablock and category
+- small optimisation in iterator
+
+Version 7.0.0
+- Renaming many methods and parameters to be more
+  consistent with the mmCIF dictionaries.
+  (Most notably, item used to be called column or
+  tag sometimes).
+- validation_error is now a std::system_error error
+  value. The exception is gone.
+- Added repairSequenceInfo to repair invalid files
+
+Version 6.1.0
+- Add formula weight to entity in pdb2cif
+- Change order of categories inside a datablock to match order in file
+- Change default order to write out categories in a file based on
+  parent/child relationship
+- Added validate_pdbx and recover_pdbx
+- Fixed a serious bug in category_index when moving categories
+
+Version 6.0.0
+- Drop the use of CCP4's monomer library for compound information
+
+Version 5.2.5
+- Correctly import the Eigen3 library
+
+Version 5.2.4
+- Changes required to build on Windows
+
+Version 5.2.3
+- New constructors for cif::item, one taking std::optional values
+  and another taking only a name resulting in a value '.' (i.e. inapplicable).
+- added cif::cell::get_volume
+
+Version 5.2.2
+- Remove dependency on Eigen3 for users of libcifpp
+- Fix typos in documentation
+- Do not build latex files in documentation
+- Fixed conversion from string to integer, would fail on +2 e.g.
+- sqrt is not constexpr, thus kGoldenRatio should be const, not constexpr
+
+Version 5.2.1
+- New versionstring module
+- small fixes for generating documentation
+- correctly setting SONAME
+
+Version 5.2.0
+- With lots of documentation
+- Refactored coloured text output
+- Removed the subdirectory cif++/pdb, there now is a single
+  header file pdb.hpp for I/O of legacy PDB files.
+
+Version 5.1.3
+- Dropped pkgconfig support
+
+Version 5.1.2
+- New version string code
+- Added check for Eigen3 in cifppConfig.cmake
+
+Version 5.1.1
+- Added missing include <compare> in symmetry.hpp
+- Added empty() to matrix
+- Fix for parsing legacy PDB files with a last line that does
+  not end with a new line character.
+
+Version 5.1
+- New parser, optimised for speed
+- Fix in unique ID generator
+
+Version 5.0.10
+- Fix in progress_bar, was using too much CPU
+- Optimised mmCIF parser
+
+Version 5.0.9
+- Fix in dihedral angle calculations
+- Added create_water to model
+- Writing twin domain info in PDB files and more PDB fixes
+- remove_atom improved (remove struct_conn records)
+- Added a specialisation for category::find1<std::optional>
+- fix memory leak in category
+
+Version 5.0.8
+- implemented find_first, find_min, find_max and count in category
+- find1 now throws an exception if condition does not not exactly match one row
+- Change in writing out PDB files, now looking up the original auth_seq_num
+  via the pdbx_xxx_scheme categories based on the atom_site.auth_seq_num ->
+  pdbx_xxx_scheme.pdb_seq_num relationship.
+- fix memory leak in category
+
+Version 5.0.7.1
+- Use the implementation from zeep for std::experimental::is_detected
+
+Version 5.0.7
+- Reintroduce exports file. For DLL's
+
+Version 5.0.6
+- Fix file::contains, using iequals
+- Fix is_cis
+
+Version 5.0.5
+- Fix code to work on 32 bit machines
+
+Version 5.0.4
+- Revert removal of CIFPP_SHARE_DIR export
+
+Version 5.0.3
+- Fix installation of libcifpp into the correct locations
+
+Version 5.0.2
+- Fix export of CISPEP records in PDB format
+- Better support for exporting package_source
+
+Version 5.0.1
+- Fix loading dictionaries
+- Support for cifv1.0 files
+
+Version 5.0.0
+- Total rewrite of cif part
+- Removed DSSP code, moved into dssp project itself
+
+Version 4.2.1
+- Improved REMARK 3 parser (for TLS in large molecules)
+
+Version 4.2.0
+- Yet another rewrite of resource loading
+
+Version 4.1.1
+- Fall back to zero charge for scattering factors if the atom
+  was not found in the table.
+- Improve code to locate resources, failing less.
+
+Version 4.1.0
+- Some interface changes for mmcif::Atom
+
+Version 4.0.1
+- Added a bunch of const methods to Datablock and Category.
+- Changed PDB writing interface to accept Datablock instead of File.
+
+Version 4.0.0
+- getResidue in mmcif::Structure now requires both a
+  sequence ID and an auth sequence ID. As a result the code was cleaned
+  up considerably.
+
+Version 3.0.5
+- mmcif::Structure redesign. It is now a wrapper around a cif::Datablock.
+
+Version 3.0.4
+- Fix in mmCIF parser, now correctly handles the unquoted
+  string ??
+
+Version 3.0.3
+- Better configuration checks, for atomic e.g.
+- Fixed a problem introduced in refactoring mmcif::Atom
+- Version string creation
+
+Version 3.0.2
+- refactored mmcif::Atom for performance reasons
+
+Version 3.0.1
+- Fixed processing of proline restraints file from CCP4, proline
+  is a peptide, really.
+- Added code to facilitate DSSP
+
+Version 3.0.0
+- Replaced many strings in the API with string_view for
+  performance reasons.
+- Upgraded mmcif::Structure
+- various other small fixes
+
+Version 2.0.5
+- Backporting updated CMakeLists.txt file
+
+Version 2.0.4
+- Reverted a too strict test when reading cif files.
+
+Version 2.0.3
+- Fixed reading mmCIF files where model numbers are used and
+  model number 1 is missing.
+
+Version 2.0.2
+- Added configuration flag to disable downloading CCD data during build
+  Note that there are now two flags for CCD data:
+  DOWNLOAD_CCD to enable downloading during build
+  INSTALL_UPDATE_SCRIPT to install an update mechanism for this file
+- Updated unit tests to work even if no CCD data is available
+
+Version 2.0.1
+- Fixed the generator for the symmetry operator table
+
+Version 2.0.0
+- New API interface for accessing query results
+- Removed bzip2 support
+- improved makefiles
+
+Version 1.1.1
+- Now with full support for MS Windows
+
+Version 1.1.0
+- Changed from GNU configure to CMake.
+- Loading compound information from CCD file
+
+Version 1.0.1
+- Changed the way resources are looked up, local dir first,
+  then /var/cache and finally compiled in resources (with mrc).
+
+Version 1.0.0
+- First public release

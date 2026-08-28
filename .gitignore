@@ -16,3 +16,6 @@ cmake-build-*/
 .idea/
 .vscode/
 .DS_Store
+
+# Offline dependency bundle (regenerate with: tar czf deps.tar.gz deps)
+deps.tar.gz
