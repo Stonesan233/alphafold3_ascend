@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+_skbuild/
+CMakeFiles/
+cmake-build-*/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
