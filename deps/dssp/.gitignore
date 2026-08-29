@@ -1,7 +1,0 @@
-.vscode/
-.vs/
-build/
-.gdb_history
-**/*.dssp
-src/revision.hpp
-libdssp/src/revision.hpp

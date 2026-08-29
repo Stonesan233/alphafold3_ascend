@@ -18,8 +18,10 @@ dependencies = [
     "absl-py>=2.3.1",
     "dm-haiku==0.0.17",
     "etils[epath]",
-    "jax==0.10.2",
-    "jax[cuda12]==0.10.2; sys_platform != 'darwin'",
+    # Plain jax only (CPU/NPU); the CUDA extra would pull ~3GB of NVIDIA
+    # wheels that are useless on Ascend. Use `pip install -e ".[cuda]"` on
+    # real GPU machines instead.
+    "jax==0.10.2; sys_platform != 'darwin'",
     "jax-mps==0.10.9; sys_platform == 'darwin' and platform_machine == 'arm64'",
     "numpy",
     "rdkit==2025.9.4",
@@ -29,6 +31,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cuda = [
+  # Opt-in CUDA 12 support for NVIDIA GPU machines.
+  "jax[cuda12]==0.10.2; sys_platform != 'darwin'",
+]
 gcsfs = [
   # Use `uv sync --extra gcsfs` to enable GCS paths for inputs and outputs
   "gcsfs",

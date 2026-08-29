@@ -1,7 +1,5 @@
-# SPDX-FileCopyrightText: 2026 Maarten L. Hekkelman
-#
-# SPDX-License-Identifier: CC0-1.0
-
+# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
+# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
 name: publish docs
 
 on:
@@ -21,7 +19,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
 
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
@@ -31,7 +29,7 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     - name: Install dependencies Ubuntu
-      run: sudo apt-get update && sudo apt-get install cmake doxygen graphviz
+      run: sudo apt-get update && sudo apt-get install cmake doxygen
 
     - uses: actions/setup-python@v4
       with:
@@ -49,7 +47,7 @@ jobs:
         ls -l ${{ steps.strings.outputs.build-output-dir }}/docs/sphinx
 
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
+      uses: actions/upload-pages-artifact@v2
       with:
         path: ${{ steps.strings.outputs.build-output-dir }}/docs/sphinx
 
@@ -64,4 +62,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v2

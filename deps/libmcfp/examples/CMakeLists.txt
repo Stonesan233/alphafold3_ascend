@@ -1,20 +1,12 @@
-# SPDX-FileCopyrightText: 2026 Maarten L. Hekkelman
-# SPDX-License-Identifier: BSD-2-Clause
-
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.16)
 
 project(mcfp-usage LANGUAGES CXX)
 
-if(NOT (TARGET mcfp))
-	find_package(mcfp REQUIRED)
-endif()
+set(CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "The minimum version of C++ required for this library")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Build using traditional headers
+find_package(mcfp REQUIRED)
+
 add_executable(example example.cpp)
 target_link_libraries(example mcfp::mcfp)
-
-if(MCFP_BUILD_CXX_MODULE)
-	# Build using c++ module library
-	add_executable(example-m example.cpp)
-	target_link_libraries(example-m mcfp::mcfp-module)
-endif()

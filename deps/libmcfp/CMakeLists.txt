@@ -1,175 +1,145 @@
-# Copyright (c) 2022-2025 Maarten L. Hekkelman
-#
 # SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2022 Maarten L. Hekkelman
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This makefile builds a traditional library, and when the compiler
-# is thought to be good enough, a c++ module library as well.
-# Both are installed. The users selects either the traditional
-# library by using mcfp::mcfp as target library, or the module
-# by using mcfp::mcfp-module
-
-cmake_minimum_required(VERSION 3.28)
-
-# Experimental import std support
-if(${CMAKE_VERSION} VERSION_EQUAL 4.3.3)
-    set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
-
-    set(CMAKE_CXX_STANDARD_REQUIRED OFF)
-    set(CMAKE_CXX_MODULE_STD 1)
-endif()
+cmake_minimum_required(VERSION 3.23)
 
 # set the project name
-project(mcfp VERSION 2.0.4 LANGUAGES CXX)
+project(mcfp VERSION 1.3.4 LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-include(CPM)
+include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
-include(GNUInstallDirs)
+
+set(CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "The minimum version of C++ required for this library")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(BUILD_DOCUMENTATION "Build the documentation" OFF)
-option(MCFP_BUILD_CXX_MODULE "Build the library as a C++ 20 module library" ON)
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-    if(MCFP_BUILD_CXX_MODULE)
-        message(WARNING "Sorry, macOS has no support for module libraries, as fat as I can tell")
-        set(MCFP_BUILD_CXX_MODULE OFF)
-    endif()
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    if(MCFP_BUILD_CXX_MODULE AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
-        message(WARNING "Sorry, your compiler is too old, not building the module library")
-        set(MCFP_BUILD_CXX_MODULE OFF)
-    endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers")
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+	if("${CMAKE_CXX_COMPILER_VERSION}" LESS 9.4)
+		message(FATAL_ERROR "Your GNU g++ is too old, need at least 9.4")
+	endif()
+
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers")
 elseif(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
-	add_definitions(-DNOMINMAX)
-elseif(${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
-    if(MCFP_BUILD_CXX_MODULE AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 20)
-        message(WARNING "Sorry, your compiler is too old, not building the module library")
-        set(MCFP_BUILD_CXX_MODULE OFF)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+endif()
+
+if(MSVC)
+	# make msvc standards compliant...
+	add_compile_options(/permissive-)
+
+    if(${CMAKE_SYSTEM_VERSION} GREATER_EQUAL 10) # Windows 10
+        add_definitions(-D _WIN32_WINNT=0x0A00)
+    elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.3) # Windows 8.1
+        add_definitions(-D _WIN32_WINNT=0x0603)
+    elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.2) # Windows 8
+        add_definitions(-D _WIN32_WINNT=0x0602)
+    elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.1) # Windows 7
+        add_definitions(-D _WIN32_WINNT=0x0601)
+    elseif(${CMAKE_SYSTEM_VERSION} EQUAL 6.0) # Windows Vista
+        add_definitions(-D _WIN32_WINNT=0x0600)
+    else() # Windows XP (5.1)
+        add_definitions(-D _WIN32_WINNT=0x0501)
     endif()
+
+	add_definitions(-DNOMINMAX)
 endif()
 
-try_compile(STD_CHARCONV_COMPILING
-    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test-charconv.cpp)
-
-if(NOT STD_CHARCONV_COMPILING)
-    message(NOTICE "mcfp: Using fast_float for std::from_chars")
-    CPMFindPackage(
-        NAME FastFloat
-        GIT_REPOSITORY "https://github.com/fastfloat/fast_float"
-        GIT_TAG v8.0.2
-        EXCLUDE_FROM_ALL YES)
-endif()
-
-file(GLOB_RECURSE mcfp_headers include/*.hpp)
-file(GLOB_RECURSE mcfp_modules include/*.cppm)
-file(GLOB_RECURSE mcfp_cpp src/*.cpp)
-file(GLOB_RECURSE mcfp_cxx src/*.cxx)
-
-if(STD_CHARCONV_COMPILING)
-    list(FILTER mcfp_cpp EXCLUDE REGEX src/charconv-fast_float\.cpp)
-endif()
-
-add_library(mcfp ${mcfp_cpp})
+add_library(mcfp INTERFACE)
 add_library(mcfp::mcfp ALIAS mcfp)
 
-target_compile_features(mcfp PUBLIC cxx_std_23)
-target_compile_definitions(mcfp PUBLIC USE_MODULE_STD=${CMAKE_CXX_MODULE_STD})
+target_compile_features(mcfp INTERFACE cxx_std_20)
 
-if(NOT STD_CHARCONV_COMPILING)
-    target_include_directories(mcfp PRIVATE $<TARGET_PROPERTY:FastFloat::fast_float,INTERFACE_INCLUDE_DIRECTORIES>)
-	target_compile_definitions(mcfp PRIVATE USE_FAST_FLOAT)
+if(MSVC)
+	target_compile_definitions(mcfp INTERFACE NOMINMAX=1)
 endif()
 
-target_sources(mcfp
-    PUBLIC
-    FILE_SET mcfp_classic TYPE HEADERS
-    BASE_DIRS include
-    FILES
-    ${mcfp_headers})
+# adding header sources just helps IDEs
+target_sources(mcfp PUBLIC
+	FILE_SET mcfp_headers TYPE HEADERS
+	BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+	FILES
+	include/mcfp/detail/charconv.hpp
+	include/mcfp/detail/options.hpp
+	include/mcfp/error.hpp
+	include/mcfp/mcfp.hpp
+	include/mcfp/text.hpp
+	include/mcfp/utilities.hpp
+)
 
-set(mcfp_MAJOR_VERSION ${PROJECT_VERSION_MAJOR})
-set_target_properties(mcfp PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-    INTERFACE_mcfp_MAJOR_VERSION ${PROJECT_VERSION_MAJOR}
-    COMPATIBLE_INTERFACE_STRING mcfp_MAJOR_VERSION)
+# installation
+
+# Clean up old config files (with old names)
+file(GLOB OLD_CONFIG_FILES LIST_DIRECTORIES TRUE
+	${CMAKE_INSTALL_FULL_LIBDIR}/cmake/mcfp/mcfp-*.cmake)
+
+if(OLD_CONFIG_FILES)
+	message(
+		WARNING "Installation will remove old config files: ${OLD_CONFIG_FILES}")
+	install(CODE "file(REMOVE_RECURSE ${OLD_CONFIG_FILES})")
+endif()
 
 install(TARGETS mcfp
-    EXPORT mcfp-targets
-    FILE_SET mcfp_classic
-    DESTINATION "include")
+	EXPORT mcfp
+	FILE_SET mcfp_headers
+	DESTINATION include/)
 
-install(EXPORT mcfp-targets
-    NAMESPACE mcfp::
-    DESTINATION lib/cmake/mcfp)
+install(EXPORT mcfp
+	NAMESPACE mcfp::
+	DESTINATION lib/cmake/mcfp
+	FILE "mcfpTargets.cmake")
 
-if(MCFP_BUILD_CXX_MODULE)
-    add_library(mcfp-module ${mcfp_cxx})
-    add_library(mcfp::mcfp-module ALIAS mcfp-module)
+configure_package_config_file(${PROJECT_SOURCE_DIR}/cmake/mcfpConfig.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/mcfpConfig.cmake
+	INSTALL_DESTINATION lib/cmake/mcfp)
 
-    target_compile_features(mcfp-module PUBLIC cxx_std_23)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mcfpConfig.cmake"
+	DESTINATION lib/cmake/mcfp)
 
-    if(NOT STD_CHARCONV_COMPILING)
-        target_include_directories(mcfp-module PRIVATE $<TARGET_PROPERTY:FastFloat::fast_float,INTERFACE_INCLUDE_DIRECTORIES>)
-    endif()
+# Install old config file, for use in older code
 
-    target_sources(mcfp-module
-        PUBLIC
-        FILE_SET mcfp_module TYPE CXX_MODULES
-        BASE_DIRS include
-        FILES
-        ${mcfp_modules})
+install(EXPORT mcfp
+	NAMESPACE libmcfp::
+	DESTINATION lib/cmake/libmcfp
+	FILE "libmcfpTargets.cmake")
 
-    target_compile_definitions(mcfp-module PUBLIC MCFP_MODULE_MODE)
+configure_package_config_file(${PROJECT_SOURCE_DIR}/cmake/libmcfpConfig.cmake.in
+	${CMAKE_CURRENT_BINARY_DIR}/libmcfpConfig.cmake
+	INSTALL_DESTINATION lib/cmake/libmcfp)
 
-    target_include_directories(mcfp-module PUBLIC
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/mcfp>)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libmcfpConfig.cmake"
+	DESTINATION lib/cmake/libmcfp)
 
-    install(TARGETS mcfp-module
-        EXPORT mcfp-module-targets
-        CXX_MODULES_BMI DESTINATION "lib/cxx/bmi"
-        FILE_SET mcfp_module DESTINATION "lib/cxx/miu")
-
-    install(EXPORT mcfp-module-targets
-        NAMESPACE mcfp::
-        DESTINATION lib/cmake/mcfp
-        FILE "mcfp-module-targets.cmake")
-
-endif()
-
-configure_package_config_file(
-    ${PROJECT_SOURCE_DIR}/cmake/mcfp-config.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/mcfp-config.cmake
-    INSTALL_DESTINATION lib/cmake/mcfp)
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/mcfp-config-version.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/mcfp-config.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/mcfp-config-version.cmake"
-    DESTINATION lib/cmake/mcfp)
-
-set(generator -G "${CMAKE_GENERATOR}")
-
-if(CMAKE_GENERATOR_TOOLSET)
-    list(APPEND generator -T "${CMAKE_GENERATOR_TOOLSET}")
-endif()
-
-if(CMAKE_GENERATOR_PLATFORM)
-    list(APPEND generator -A "${CMAKE_GENERATOR_PLATFORM}")
-endif()
-
-if(BUILD_TESTING AND PROJECT_IS_TOP_LEVEL)
-    add_subdirectory(test)
-    add_subdirectory(examples)
+if(BUILD_TESTING)
+	add_subdirectory(test)
 endif()
 
 if(BUILD_DOCUMENTATION)
-    add_subdirectory(docs)
+	add_subdirectory(docs)
 endif()
+

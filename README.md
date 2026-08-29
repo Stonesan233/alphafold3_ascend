@@ -80,19 +80,45 @@ af3.bin(.zst)  fourier_weight.npy  fourier_bias.npy
 # 0. 系统包（Boost regex 用系统包，不打进 deps；已有 1.74 即可，不要求 1.80）
 sudo apt-get install -y libboost-regex-dev cmake ninja-build python3-dev
 
-# 1. 解压依赖（或直接用仓库内 deps/ 目录）
-tar xzf deps.tar.gz        # 仓库内执行 tar czf deps.tar.gz deps 可重新生成
+# 0.1 Python 侧依赖（tokamax 必须钉 0.0.12：>=0.1.0 移除了
+#     DotProductAttentionImplementation，会破坏 import）
+pip install fastapi uvicorn pydantic zstandard rdkit etils absl-py tqdm
+pip install tokamax==0.0.12
 
-# 2. 编译安装（Python 3.11）
+# 1. 解压依赖（或直接用仓库内 deps/ 目录；仓库根执行
+#    tar czf deps.tar.gz deps 可重新生成）
+tar xzf deps.tar.gz
+
+# 2. 预放置 components.cif（约 514MB，数据包级文件，不进 git / deps.tar.gz）
+#    注意：文件必须非空——空占位文件会被 libcifpp 删除并尝试联网重新下载
+cp /path/to/data-package/components.cif deps/libcifpp/rsrc/components.cif
+ls -lh deps/libcifpp/rsrc/components.cif   # 约 514MB，禁止 0 字节
+
+# 3. 编译安装
+#    变量名是 ALPHAFOLD3_DEPS_DIR（不要敲成 ALPHAFAFOLD3_DEPS_DIR，
+#    敲错会静默走在线 FetchContent；顶层 CMake 已加空值 WARNING）
 export ALPHAFOLD3_DEPS_DIR=$PWD/deps
 cd alphafold3
-pip install -e . --no-build-isolation
+pip install -e . --no-build-isolation \
+  --config-settings="cmake.args=-DBUILD_TESTING=OFF;-DCIFPP_DOWNLOAD_CCD=OFF"
+# 注：顶层 CMake 已对 CIFPP_DOWNLOAD_CCD / CIFPP_INSTALL_UPDATE_SCRIPT /
+# BUILD_TESTING / DSSP_BUILD_MKDSSP 四项 OFF FORCE，上面的
+# --config-settings 为双保险，可省略但建议保留。
 
-# 3. 验收
+# 4. 验收
 python -c "import alphafold3.cpp; print('OK')"
 #   不得出现 boost undefined symbol
-#   断网配置阶段不得访问 github.com / gitlab.com
+#   断网配置阶段不得访问 github.com / gitlab.com / wwpdb
 ```
+
+**注意**：
+- `cpp.so` 按容器 Python ABI 现场编译，**3.11 与 3.12 的产物不能混用**
+  （换容器 Python 版本必须重编）。
+- `alphafold3/pyproject.toml` 默认只装 CPU 版 `jax`（NPU 容器不再被拖
+  ~3GB NVIDIA 包）；真有 NVIDIA GPU 时用 `pip install -e ".[cuda]"`。
+- 编译产物无需 components.cif（已 `CIFPP_DOWNLOAD_CCD=OFF`），但**生成
+  CCD pickle / 跑数据管线**需要真文件，并设置
+  `export LIBCIFPP_DATA_DIR=$ALPHAFOLD3_DEPS_DIR/libcifpp/rsrc`。
 
 `deps/`（7 个目录，均短目录名，已含全部补丁）：
 
@@ -101,10 +127,10 @@ python -c "import alphafold3.cpp; print('OK')"
 | `abseil-cpp/` | abseil @ `d7aaad83` | — |
 | `pybind11/` | pybind @ `2e081527` (v2.12.0) | — |
 | `pybind11_abseil/` | pybind @ `bddf3014` | — |
-| `libcifpp/` | pdb-redo @ `ac98531a` (v7.0.3) | Boost 1.80→1.74；eigen 改本地 `SOURCE_DIR` |
+| `libcifpp/` | pdb-redo @ `ac98531a` (v7.0.3) | Boost 1.80→1.74；eigen 改本地 `SOURCE_DIR`；`EIGEN_INCLUDE_DIR` 同时含根目录与 `Eigen/`（修复 `#include "Core"` 找不到） |
 | `dssp/` | PDB-REDO @ `5756047` (v4.4.7) | mkdssp 可关（alphafold3 默认 OFF）；libmcfp/libcifpp 改本地 `SOURCE_DIR` |
 | `eigen/` | libeigen 3.4.0（仅头文件使用，已裁剪） | — |
-| `libmcfp/` | mhekkel @ v2.0.4（仅 dssp 配置阶段需要） | — |
+| `libmcfp/` | mhekkel @ v1.3.4（g++ 11 / C++20 可编；仅 dssp 配置阶段需要，**勿用 v2.0.4，需 C++23**） | — |
 
 不设 `ALPHAFOLD3_DEPS_DIR` 时仍走 GitHub FetchContent 在线构建，原路径不受影响。
 补丁内容见 `patches/`（`patch -p1` 格式，仅供审计，非部署前置）。
@@ -124,10 +150,16 @@ python -c "import alphafold3.cpp; print('OK')"
 ## 验证状态
 
 - 已通过：全部改动 `py_compile` 语法检查；run_alphafold.py 引用的
-  alphafold3 3.0.4 API 已逐一静态核实；dssp 补丁 `git apply` 往返校验
-- 待内网 NPU 回归：`contact_probs` 均值差 ~0.0011、fp32 完整配置 ~80s 量级、
-  `import alphafold3.cpp` 无 boost 缺符号、run_alphafold.py 端到端与
-  af3_service.py（官方 test pkl / input）
+  alphafold3 3.0.4 API 已逐一静态核实；libcifpp / dssp 补丁 git-apply
+  往返校验；deps 七个树 git 索引与文件系统 0 缺失（eigen `Core`/`Sparse`
+  166 文件已入 git）；deps.tar.gz 含完整 `Eigen/Core`、`src/Core/**`、
+  libmcfp v1.3.4，无 test/examples 目录
+- 现场已跑通（A3-syn-31，Python 3.12 / torch_npu 2.10）：模型加载、
+  NPU fp32 推理、af3_service（冒烟 ~1.06s，`predicted_lddt_mean` 83.6，
+  参数量 368,384,666，`af3.bin.zst` 自动检测）
+- 待回归：本仓 round-2 修复后的断网 `pip install -e alphafold3/`、
+  `import alphafold3.cpp`、`/health` + `/predict/test`（现场用同一
+  流程回归，基线见 `AF3_NPU_round2_fix_requirements.md`）
 
 ## 内网环境参考
 

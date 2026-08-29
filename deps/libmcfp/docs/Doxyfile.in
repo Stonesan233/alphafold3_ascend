@@ -1,10 +1,5 @@
-# SPDX-FileCopyrightText: 2026 Maarten L. Hekkelman
-# SPDX-License-Identifier: BSD-2-Clause
-
-EXCLUDE_SYMBOLS        = std*
+EXCLUDE_SYMBOLS        = mcfp::detail::*, mcfp::config_*, mcfp::config::ig_*, mcfp::config_category*, mcfp::make_error_*, std*
 FILE_PATTERNS          = *.hpp
-PREDEFINED             = MCFP_EXPORT= MCFP_INLINE=inline
-RECURSIVE			   = YES
 GENERATE_XML           = YES
 GENERATE_HTML          = NO
 GENERATE_TODOLIST      = NO

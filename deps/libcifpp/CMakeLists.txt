@@ -256,7 +256,10 @@ else()
 		FetchContent_Populate(my-eigen3)
 	endif()
 
-	set(EIGEN_INCLUDE_DIR ${my-eigen3_SOURCE_DIR})
+	# Eigen module headers (e.g. Eigen/Eigenvalues) do `#include "Core"`,
+	# resolved relative to the Eigen/ directory itself, so both the eigen
+	# root and Eigen/ must be on the include path (semicolon-separated list).
+	set(EIGEN_INCLUDE_DIR "${my-eigen3_SOURCE_DIR};${my-eigen3_SOURCE_DIR}/Eigen")
 endif()
 
 include(FindFilesystem)

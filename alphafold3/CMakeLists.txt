@@ -47,18 +47,30 @@ unset(CMAKE_CXX_SCANDEP_SOURCE)
 #   dssp/            (PDB-REDO/dssp @ 57560472b4260dc41f457706bc45fc6ef0bc0f10, v4.4.7;
 #                     pre-patched: optional mkdssp, libmcfp/libcifpp from ${DEPS_DIR})
 #   eigen/           (libeigen/eigen @ 3.4.0, header-only usage)
-#   libmcfp/         (mhekkel/libmcfp @ v2.0.4; needed only by dssp's configure stage)
+#   libmcfp/         (mhekkel/libmcfp @ v1.3.4, C++20-compatible; needed only
+#                     by dssp's configure stage - do NOT use v2.0.4, it needs C++23)
 # The pre-patched trees are shipped in the repository's deps/ directory and
 # in deps.tar.gz. When ALPHAFOLD3_DEPS_DIR is unset (or a dependency
 # directory is missing), the original GitHub FetchContent path is used.
 set(DEPS_DIR "$ENV{ALPHAFOLD3_DEPS_DIR}" CACHE PATH
     "Directory containing pre-downloaded dependency sources")
 
-# AlphaFold3 only needs the dssp::dssp library, not the mkdssp executable
-# (whose libmcfp linkage is broken with newer libmcfp). Default OFF; the
-# deps/dssp patch keeps the option available for standalone builds.
+if(NOT DEPS_DIR)
+  message(WARNING
+    "ALPHAFOLD3_DEPS_DIR is not set - falling back to GitHub FetchContent "
+    "for all dependencies. Offline builds must export it first (watch out "
+    "for the common typo ALPHAFAFOLD3_DEPS_DIR, with an extra F).")
+endif()
+
+# Offline-safe defaults for all subprojects. FORCE keeps subprojects from
+# re-enabling these behind our back (each would hit the network: libcifpp
+# tests FetchContent Catch2 from GitHub, CCD download hits wwpdb, ...).
+set(CIFPP_DOWNLOAD_CCD OFF CACHE BOOL
+    "Do not download components.cif from wwpdb during configure" FORCE)
+set(CIFPP_INSTALL_UPDATE_SCRIPT OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(DSSP_BUILD_MKDSSP OFF CACHE BOOL
-    "Build the mkdssp executable (not needed by AlphaFold3)")
+    "Build the mkdssp executable (not needed by AlphaFold3)" FORCE)
 
 if(DEPS_DIR AND EXISTS "${DEPS_DIR}/abseil-cpp")
   FetchContent_Declare(abseil-cpp SOURCE_DIR "${DEPS_DIR}/abseil-cpp")

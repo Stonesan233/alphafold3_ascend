@@ -150,7 +150,7 @@ FetchContent_Declare(... GIT_REPOSITORY https://github.com/pdb-redo/libcifpp.git
 # libcifpp → SOURCE_DIR ${DEPS_DIR}/libcifpp 或已 patch 的同级目录
 ```
 
-现场 **只需要 dssp 静态库**。若关 mkdssp 后不再需要 libmcfp，可不再打包 libmcfp。若关不干净仍链 libmcfp，把 `libmcfp-2.0.4` 也放进 `deps/libmcfp` 并改 `SOURCE_DIR`。内网用过 `libmcfp-2.0.4`。
+现场 **只需要 dssp 静态库**。dssp 配置阶段无条件 FetchContent libmcfp，因此必须本地化：用 **v1.3.4**（1.3.x 为 C++17/20，g++ 11 可编；v2.0.4 需 C++23，现场编不过）放进 `deps/libmcfp` 并改 `SOURCE_DIR`。
 
 3. **eigen**：dssp 若自己 FetchContent eigen，同样改到 `deps/eigen`。
 

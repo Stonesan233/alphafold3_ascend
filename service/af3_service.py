@@ -46,6 +46,7 @@ import time
 import uuid
 
 import numpy as np
+from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -73,6 +74,22 @@ HOST = os.environ.get("AF3_HOST", "0.0.0.0")
 PORT = int(os.environ.get("AF3_PORT", "9800"))
 
 MODEL_ID = "alphafold3-3.0.4"
+
+
+# Request models MUST live at module top level (not inside build_app):
+# FastAPI resolves annotation strings (this file uses
+# `from __future__ import annotations`) via eval_str in module globals, so
+# function-local classes raise NameError at startup.
+class ChatRequest(BaseModel):
+    model: str = "alphafold3-3.0.4"
+    messages: list
+    temperature: float | None = 1.0
+    max_tokens: int | None = 4096
+    stream: bool | None = False
+
+
+class PredictRequest(BaseModel):
+    pkl_path: str
 
 # ---------------------------------------------------------------------------
 # Phase 1: load test pkl to npz BEFORE importing torch_npu
@@ -285,7 +302,6 @@ def summarize_result(result: dict) -> dict:
 def build_app():
     from fastapi import FastAPI, HTTPException
     from fastapi.responses import JSONResponse
-    from pydantic import BaseModel
 
     app = FastAPI(title="AlphaFold3 NPU Service", version="1.1.0")
 
@@ -371,13 +387,6 @@ def build_app():
             except OSError:
                 pass
 
-    class ChatRequest(BaseModel):
-        model: str = MODEL_ID
-        messages: list
-        temperature: float | None = 1.0
-        max_tokens: int | None = 4096
-        stream: bool | None = False
-
     @app.post("/v1/chat/completions")
     async def chat_completions(req: ChatRequest):
         user_msg = req.messages[-1]["content"] if req.messages else ""
@@ -394,9 +403,6 @@ def build_app():
             return chat_response(
                 {"error": str(e)}, finish_reason="error", status_code=500
             )
-
-    class PredictRequest(BaseModel):
-        pkl_path: str
 
     @app.post("/predict")
     async def predict(req: PredictRequest):

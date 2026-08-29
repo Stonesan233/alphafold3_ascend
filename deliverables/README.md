@@ -66,8 +66,16 @@ sudo apt-get install -y libboost-regex-dev cmake ninja-build python3-dev
   静态验收：DEPS_DIR 模式下全部 GIT_REPOSITORY 均在 else 分支（除
   libcifpp 的 boost-rx，由系统包 libboost-regex-dev 覆盖）；未在 Linux
   上做完整 cmake / pip install 编译验证。
-- deps.tar.gz：由 deps/ 生成（约 7MB 压缩 / 37MB 源码），未入 git，
-  交付时随包携带或在仓库根执行 tar czf deps.tar.gz deps 重新生成。
+- deps.tar.gz：由 deps/ 生成（约 6MB 压缩），未入 git，交付时随包携带或
+  在仓库根执行 tar czf deps.tar.gz deps 重新生成。
+- round-2 现场修复（AF3_NPU_round2_fix_requirements.md）已全部落地：
+  ① eigen Core/Sparse 补齐（根因：eigen 自带 .gitignore 的 `core` 规则
+  大小写不敏感匹配，已删除全部 vendored .gitignore，git 索引 0 缺失）；
+  ② libmcfp v2.0.4→v1.3.4（C++23→C++17/20，g++ 11 可编）；③ libcifpp
+  `EIGEN_INCLUDE_DIR` 含根目录 + `Eigen/`；④ jax[cuda12] 改 optional
+  extra；⑤ af3_service.py Pydantic 类移模块顶层（修 FastAPI NameError）；
+  ⑥ 顶层 CMake 四项 OFF FORCE + DEPS_DIR 空值 WARNING + deps 删
+  test/examples；⑦ README 补 cif 预放置/完整命令/变量名防呆/tokamax 钉版。
 - NPU 回归：未做（需内网用同一官方 test pkl 回归：
   contact_probs 均值差 ~0.0011、fp32 完整配置 ~80s 量级）。
 - af3_service.py 已按部署手册重写入库（service/af3_service.py），

@@ -26,4 +26,6 @@ cd dssp     && patch -p1 < ../patches/dssp-mkdssp-offline.patch
 注意：官方 zip/tar 解压后的目录名带 commit hash（如
 `libcifpp-ac98531a.../`），需改名为短目录名 `libcifpp/`，与 alphafold3
 顶层 `CMakeLists.txt` 的 `EXISTS "${DEPS_DIR}/libcifpp"` 判断对齐。
-`deps/` 目录树（含 `eigen/` 3.4.0 与 `libmcfp/` v2.0.4）已按此命名。
+`deps/` 目录树（含 `eigen/` 3.4.0 与 `libmcfp/` v1.3.4）已按此命名，
+且已删除各依赖自带的 `.gitignore`（eigen 的 `core` 规则会把 `Eigen/Core`、
+`Eigen/src/Core/` 等源文件滤出 git）。

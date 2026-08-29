@@ -1,21 +1,12 @@
-// SPDX-FileCopyrightText: 2026 Maarten L. Hekkelman
-// SPDX-License-Identifier: BSD-2-Clause
-
 // Example of using libmcfp
 
-#include <iomanip>
 #include <iostream>
-#include <vector>
+#include <filesystem>
 
-#if defined(MCFP_MODULE_MODE)
-import mcfp;
-#else
-#include "mcfp/mcfp.hpp"
-#endif
+#include <mcfp/mcfp.hpp>
 
-int main(int argc, char *const argv[])
+int main(int argc, char * const argv[])
 {
-	// config is a singleton
 	auto &config = mcfp::config::instance();
 
 	// Initialise the config object. This can be done more than once,
@@ -23,31 +14,27 @@ int main(int argc, char *const argv[])
 	// first operand.
 
 	config.init(
-			  // The first parameter is the 'usage' line, used when printing out the options
-			  "usage: example [options] file",
+		// The first parameter is the 'usage' line, used when printing out the options
+		"usage: example [options] file",
 
-			  // Flag options (not taking a parameter)
-			  mcfp::make_option("help,h", "Print this help text"),
-			  mcfp::make_option("verbose,v", "Verbose level, can be specified more than once to increase level."),
+		// Flag options (not taking a parameter)
+		mcfp::make_option("help,h", "Print this help text"),
+		mcfp::make_option("verbose,v", "Verbose level, can be specified more than once to increase level"),
 
-			  // A couple of options with parameter
-			  mcfp::make_option<std::string>("config", "Config file to use"),
-			  mcfp::make_option<std::string>("text", "The text string to echo"),
+		// A couple of options with parameter
+		mcfp::make_option<std::string>("config", "Config file to use"),
+		mcfp::make_option<std::string>("text", "The text string to echo"),
 
-			  // And options with a default parameter
-			  mcfp::make_option<int>("a", 1, "first parameter for multiplication"),
-			  mcfp::make_option<float>("b", 2.0f, "second parameter for multiplication"),
+		// And options with a default parameter
+		mcfp::make_option<int>("a", 1, "first parameter for multiplication"),
+		mcfp::make_option<float>("b", 2.0f, "second parameter for multiplication"),
 
-			  // You can also allow multiple values
-			  mcfp::make_option<std::vector<std::string>>("c", "Option c, can be specified more than once"),
+		// You can also allow multiple values
+		mcfp::make_option<std::vector<std::string>>("c", "Option c, can be specified more than once"),
 
-			  // This option is not shown when printing out the options
-			  mcfp::make_hidden_option("d", "Debug mode"))
-		.add_section("section-1",
-			mcfp::make_option<std::string>("text", "Another text option, now part of section-1"),
-
-			mcfp::make_option<std::string>("an-option-with-a-long-name",
-				"Shows that the output of help ends up correctly and wrapped as well if you have a small terminal."));
+		// This option is not shown when printing out the options
+		mcfp::make_hidden_option("d", "Debug mode")
+	);
 
 	// There are two flavors of calls, ones that take an error_code
 	// and return the error in that code in case something is wrong.
@@ -60,7 +47,7 @@ int main(int argc, char *const argv[])
 	config.parse(argc, argv, ec);
 	if (ec)
 	{
-		std::cerr << "Error parsing argument " << std::quoted(config.get_last_option()) << ": " << ec.message() << '\n';
+		std::cerr << "Error parsing arguments: " << ec.message() << std::endl;
 		exit(1);
 	}
 
@@ -68,13 +55,8 @@ int main(int argc, char *const argv[])
 
 	if (config.has("help") or config.operands().size() != 1)
 	{
-		// Tell user what was wrong
 		// This will print out the 'usage' message with all the visible options
-		std::cerr << config << '\n';
-
-		if (not config.has("help") and config.operands().size() != 1)
-			std::cerr << "Invalid number of operands, should be exactly one\n\n";
-
+		std::cerr << config << std::endl;
 		exit(config.has("help") ? 0 : 1);
 	}
 
@@ -85,53 +67,40 @@ int main(int argc, char *const argv[])
 	config.parse_config_file("config", "example.conf", { "." }, ec);
 	if (ec)
 	{
-		std::cerr << "Error parsing config file, option " << std::quoted(config.get_last_option()) << ": " << ec.message() << '\n';
+		std::cerr << "Error parsing config file: " << ec.message() << std::endl;
 		exit(1);
 	}
 
-	// If options are specified more than once, you can get the count
+	// If options are specified more than once, you can get the count 
 
-	[[maybe_unused]] int VERBOSE = config.count("verbose");
+	int VERBOSE = config.count("verbose");
 
 	// Operands are arguments that are not options, e.g. files to act upon
 
-	std::cout << "The first operand is " << config.operands().front() << '\n';
+	std::cout << "The first operand is " << config.operands().front() << std::endl;
 
 	// Getting the value of a string option
 
 	auto text = config.get<std::string>("text", ec);
 	if (ec)
 	{
-		std::cerr << "Error getting option text: " << ec.message() << '\n';
+		std::cerr << "Error getting option text: " << ec.message() << std::endl;
 		exit(1);
 	}
 
-	std::cout << "Text option is " << std::quoted(text) << '\n';
+	std::cout << "Text option is " << text << std::endl;
 
-	// Alternative, using get_optional
+	// Likewise for numeric options
 
-	if (auto t1 = config.get_optional("text"))
-		std::cout << "Text option still is " << std::quoted(*t1) << '\n';
+	int a = config.get<int>("a");
+	float b = config.get<float>("b");
 
-	// getting values for numeric options
-
-	if (config.has("a") and config.has("b"))
-	{
-		int a = config.get<int>("a");
-		float b = config.get<float>("b");
-
-		std::cout << "a (" << a << ") * b (" << b << ") = " << a * b << '\n';
-	}
+	std::cout << "a (" << a << ") * b (" << b << ") = " << a * b << std::endl;
 
 	// And multiple strings
 
-	for (const std::string& s : config.get<std::vector<std::string>>("c"))
-		std::cout << "c: " << s << '\n';
-
-	// Section support
-
-	if (auto t = config.get_optional("section-1.text"); t.has_value())
-		std::cout << "Text option for 'section-1' is " << std::quoted(*t) << '\n';
+	for (std::string s : config.get<std::vector<std::string>>("c"))
+		std::cout << "c: " << s << std::endl;
 
 	return 0;
 }

@@ -1,11 +1,8 @@
-# SPDX-FileCopyrightText: 2026 Maarten L. Hekkelman
-# SPDX-License-Identifier: BSD-2-Clause
-
 find_package(Doxygen REQUIRED)
 find_package(Sphinx REQUIRED)
 
 # Find all the public headers
-set(MCFP_PUBLIC_HEADER_DIR ${PROJECT_SOURCE_DIR}/include)
+set(MCFP_PUBLIC_HEADER_DIR ${PROJECT_SOURCE_DIR}/include/mcfp)
 file(GLOB_RECURSE MCFP_PUBLIC_HEADERS ${MCFP_PUBLIC_HEADER_DIR}/*.hpp)
 
 set(DOXYGEN_INPUT_DIR ${MCFP_PUBLIC_HEADER_DIR})
@@ -43,9 +40,4 @@ add_custom_target("Sphinx-${PROJECT_NAME}" ALL
 	WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 	COMMENT "Generating documentation with Sphinx")
 
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sphinx/ DESTINATION share/doc/mcfp PATTERN .doctrees EXCLUDE)
-
-set_property(
-  TARGET "Sphinx-${PROJECT_NAME}"
-  APPEND
-  PROPERTY ADDITIONAL_CLEAN_FILES ${DOXYGEN_OUTPUT_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/api)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/sphinx/ DESTINATION ${CMAKE_INSTALL_DOCDIR} PATTERN .doctrees EXCLUDE)
